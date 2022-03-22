@@ -388,7 +388,7 @@ void custom_cell_update_mechanics( Cell* pCell , Phenotype& phenotype , double d
     static int attach_to_BM_i = pCell->custom_data.find_variable_index( "attach_to_BM" ); 
 
     double adhesion_radius = phenotype.geometry.radius * phenotype.mechanics.relative_maximum_adhesion_distance;
-	adhesion_radius = phenotype.geometry.radius * 3;
+	adhesion_radius =  pCell->phenotype.geometry.radius * 3;
     int ncells_attached = 0;
 	double temp_r;
 	double temp_a;
@@ -442,12 +442,11 @@ void custom_cell_update_mechanics( Cell* pCell , Phenotype& phenotype , double d
 			{
 				temp_r = displacement;
 				temp_r /= R; // d/R
-				temp_r += 1.0; // 1-d/R 
+				// temp_r += 1.0; // 1-d/R 
 				temp_r *= temp_r; // (1-d/R)^2 
 				temp_r *= membrane_repulsion_factor;
 				temp_a -= temp_r;
 			}
-
 			axpy(&(pCell->velocity), temp_a , normal);
 		}
 		else 
