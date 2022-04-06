@@ -14,7 +14,7 @@
 	</domain>
 	<overall>
 		<max_time
-			units="min">120</max_time>
+			units="min">240</max_time>
 		<time_units>min</time_units>
 		<space_units>micron</space_units>
 		<dt_diffusion
@@ -163,7 +163,7 @@
 	</microenvironment_setup>
 	<cell_definitions>
 		<cell_definition
-			name="parietal_basement_membrane_subcell"
+			name="epithelial_subcell"
 			ID="0">
 			<phenotype>
 				<cycle
@@ -272,9 +272,9 @@
 				<motility>
 					<speed>1</speed>
 					<persistence_time>1</persistence_time>
-					<migration_bias>.5</migration_bias>
+					<migration_bias>.2</migration_bias>
 					<options>
-						<enabled>true</enabled>
+						<enabled>false</enabled>
 						<enabled>false</enabled>
 						<use_2D>true</use_2D>
 						<chemotaxis>
@@ -304,18 +304,17 @@
 				<cell_plasticity>0.0000</cell_plasticity>
 				<cell_ID>0.0</cell_ID>
 				<relative_adhesion_other_cell_types>1</relative_adhesion_other_cell_types>
-				<relative_adhesion_other_cells>0.3</relative_adhesion_other_cells>
-				<attach_to_BM units="dimensionless">0.0</attach_to_BM> 
+				<relative_adhesion_other_cells>0.5</relative_adhesion_other_cells>
+				<relative_maximum_membrane_adhesion_distance>3</relative_maximum_membrane_adhesion_distance> 
 				<attach_lifetime units="min">1.0</attach_lifetime> 
 				<attach_time units="min">0.0</attach_time> 
+				<attach_to_BM units="dimensionless">0.0</attach_to_BM> 
 				<elastic_const units="dimensionless">0.0</elastic_const> 
-				<attach_BM_x units="micron">0.0</attach_BM_x> 
-				<attach_BM_y units="micron">0.0</attach_BM_y>
 				<subcell_adhesion_factor>1</subcell_adhesion_factor>
 				<subcell_repulsion_factor>1</subcell_repulsion_factor>
 				<membrane_adhesion_factor>1</membrane_adhesion_factor>
 				<membrane_repulsion_factor>1</membrane_repulsion_factor>
-				<spring_break_push>-0.2</spring_break_push>
+				<spring_break_push>-0.3</spring_break_push>
 			</custom_data>
 		</cell_definition>
 	</cell_definitions>

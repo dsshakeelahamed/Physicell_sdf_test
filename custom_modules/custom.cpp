@@ -134,7 +134,7 @@ void create_cell_types( void )
 	
 
 	// Cell_Definition* pCD = find_cell_definition( "mesangial_matrix_subcell" ); 
-	Cell_Definition* pCD = find_cell_definition( "parietal_basement_membrane_subcell" ); 
+	Cell_Definition* pCD = find_cell_definition( "epithelial_subcell" ); 
 	// pCD->functions.update_phenotype = pheno_update; 
 	// // pCD->functions.custom_cell_rule = NULL; // extra_elastic_attachment_mechanics;  // pre-1.8.0
 	// pCD->functions.custom_cell_rule = custom_cell_update;   // dt_mechanics
