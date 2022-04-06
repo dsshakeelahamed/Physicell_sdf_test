@@ -16,14 +16,7 @@ void epithelial_special_mechanics( Cell* pCell, Phenotype& phenotype, double dt 
 	static int nRP = 0; // "rest_position"
 	
 	std::vector<double> displacement = pCell->custom_data.vector_variables[nRP].value ; 
-	// std::cout << "in special mechanics method for cell id " << pCell->ID << std::endl;
-	// calling heterotypic cell update
-	// heterotypic_update_cell_velocity(pCell, phenotype, dt);
-
-	// trying homogenous update
-	// basically in this, get all the ones which are of same type (epithelial),
-	// have adhesion force and repulsive force even between them,  
-
+	
 	custom_cell_update_mechanics( pCell , phenotype , dt );
 	
 	if( pCell->functions.add_cell_basement_membrane_interactions )
@@ -40,8 +33,8 @@ void epithelial_special_mechanics( Cell* pCell, Phenotype& phenotype, double dt 
 	{
 		// pCell->add_potentials(*neighbor);
 		// for each neighbor in current voxel, add it's contribution to displacement and velocity
-		// add_heterotypic_potentials( pCell, *neighbor ); 
-		add_spring_potentials(pCell, *neighbor );
+		add_heterotypic_potentials( pCell, *neighbor ); 
+		// add_spring_potentials(pCell, *neighbor );
 	}
 	std::vector<int>::iterator neighbor_voxel_index;
 	std::vector<int>::iterator neighbor_voxel_index_end = 
@@ -60,8 +53,8 @@ void epithelial_special_mechanics( Cell* pCell, Phenotype& phenotype, double dt 
 		{
 			// pCell->add_potentials(*neighbor);
 			// for each cell in neigboring voxel, add it's contribution to displacement and velocity
-			// add_heterotypic_potentials( pCell, *neighbor ); 
-			add_spring_potentials(pCell, *neighbor );
+			add_heterotypic_potentials( pCell, *neighbor ); 
+			// add_spring_potentials(pCell, *neighbor );
 		}
 	}
 
@@ -71,124 +64,8 @@ void epithelial_special_mechanics( Cell* pCell, Phenotype& phenotype, double dt 
 	return; 
 }
 
-void add_spring_potentials(Cell* my_cell, Cell* other_agent)
-{
-	// basically check if the adjacent cell is of same type and connected to link
-	// if so, then put a repulsive force between these 2, for now use same repulsion co efficient 
-	
-	static int nCellID = my_cell->custom_data.find_variable_index( "cell_ID" ); 
-	
-	// if( this->ID == other_agent->ID )
-	// if same cell, return
-	if( my_cell == other_agent )
-	{ return; }
-	
-	static int nRAOC = my_cell->custom_data.find_variable_index( "relative_adhesion_other_cells" ); 
-	static int nRAOCT = my_cell->custom_data.find_variable_index( "relative_adhesion_other_cell_types" ); 
-
-	static int subcell_repulsion_factor_index = my_cell->custom_data.find_variable_index("subcell_repulsion_factor");
-	static int subcell_adhesion_factor_index = my_cell->custom_data.find_variable_index("subcell_adhesion_factor");
-
-	double subcell_repulsion_factor = my_cell->custom_data[subcell_repulsion_factor_index];
-	double subcell_adhesion_factor = my_cell->custom_data[subcell_adhesion_factor_index];
-	
-	double rel_heterotypic_adhesion = my_cell->custom_data[nRAOCT];  
-	double rel_other_cells_adhesion = my_cell->custom_data[nRAOC];  
-	
-	// 12 uniform neighbors at a close packing distance, after dividing out all constants
-	static double simple_pressure_scale = 0.027288820670331; // 12 * (1 - sqrt(pi/(2*sqrt(3))))^2 
-	// 9.820170012151277; // 12 * ( 1 - sqrt(2*pi/sqrt(3)))^2
-
-	double distance = 0; 
-	for( int i = 0 ; i < 3 ; i++ ) 
-	{ 
-		// find distance between cells 
-		my_cell->displacement[i] = my_cell->position[i] - (*other_agent).position[i]; 
-		distance += (my_cell->displacement[i]) * (my_cell->displacement[i]); 
-	}
-	// Make sure that the distance is not zero
-	
-	distance = std::max(sqrt(distance), 0.00001); 
-	
-	//Repulsive
-	// Repulsion attributes
-	double R = my_cell->phenotype.geometry.radius + (*other_agent).phenotype.geometry.radius; 
-	
-	double RN = my_cell->phenotype.geometry.nuclear_radius + (*other_agent).phenotype.geometry.nuclear_radius;	
-	double temp_r, c;
-	if( distance > R ) 
-	// R is basically distance between centers when they are attached, if distance is more, 
-	// then there's still space between them
-	{
-		temp_r=0;
-	}
-	else
-	{
-		temp_r = -distance; // -d
-		temp_r /= R; // -d/R
-		temp_r += 1.0; // 1-d/R
-		temp_r *= temp_r; // (1-d/R)^2 
-		temp_r *= subcell_repulsion_factor;
-		// temp_r *= 1.5
-		
-		// add the relative pressure contribution 
-		my_cell->state.simple_pressure += ( temp_r / simple_pressure_scale ); // New July 2017 
-	}
-	
-	// August 2017 - back to the original if both have same coefficient 
-	double effective_repulsion = sqrt( my_cell->phenotype.mechanics.cell_cell_repulsion_strength * other_agent->phenotype.mechanics.cell_cell_repulsion_strength );
-	temp_r *= effective_repulsion; 
-	
-	//////////////////////////////////////////////////////////////////
-	
-	// Adhesive
-	double max_interactive_distance = my_cell->phenotype.mechanics.relative_maximum_adhesion_distance * my_cell->phenotype.geometry.radius + 
-		(*other_agent).phenotype.mechanics.relative_maximum_adhesion_distance * (*other_agent).phenotype.geometry.radius;
-		
-	if(distance < max_interactive_distance ) 
-	{	
-		// double temp_a = 1 - distance/max_interactive_distance; 
-		double temp_a = -distance; // -d
-		temp_a /= max_interactive_distance; // -d/S
-		temp_a += 1.0; // 1 - d/S 
-		temp_a *= temp_a; // (1-d/S)^2 
-		temp_a *= subcell_adhesion_factor;
-		
-		// August 2017 - back to the original if both have same coefficient 
-		double effective_adhesion = sqrt( my_cell->phenotype.mechanics.cell_cell_adhesion_strength * other_agent->phenotype.mechanics.cell_cell_adhesion_strength ); 
-		
-		int my_id = (int) my_cell->custom_data[nCellID] ; 
-		int other_id = (int) other_agent->custom_data[nCellID] ; 
-	
-		if( my_id != other_id )
-		{ effective_adhesion *= rel_other_cells_adhesion; }
-		
-		if( my_cell->type != other_agent->type )
-		{ effective_adhesion *= rel_heterotypic_adhesion; }
-		temp_a *= effective_adhesion; 
-		// temp_a *= 1.25;
-		temp_r -= temp_a;
-	}
-	/////////////////////////////////////////////////////////////////
-	if( fabs(temp_r) < 1e-16 )
-	{ return; }
-	temp_r /= distance;
-	// multiply the temp_r value with velocity and add it to displacement, put it back in displacement
-	axpy( &(my_cell->velocity) , temp_r , my_cell->displacement ); 
-	return;
-}
-
 void plasto_elastic_mechanics( Cell* pCell, Phenotype& phenotype, double dt )
 {
-	// BM adhesion 
-		// is it time to detach (attachment lifetime)
-		// am I unattached by capable? 
-			// search through neighbors, find closest BM type agent 
-			// form adhesion 
-		// elastic adhesion 
-	
-	// plasto-elastic. 
-		// elastic: movement towards rest position 
 	
 	static int nRP = 0; // "rest_position"
 	
@@ -219,6 +96,12 @@ void add_heterotypic_potentials(Cell* my_cell , Cell* other_agent)
 	if( my_cell == other_agent )
 	{ return; }
 	
+	static int subcell_repulsion_factor_index = my_cell->custom_data.find_variable_index("subcell_repulsion_factor");
+	static int subcell_adhesion_factor_index = my_cell->custom_data.find_variable_index("subcell_adhesion_factor");
+
+	double subcell_repulsion_factor = my_cell->custom_data[subcell_repulsion_factor_index];
+	double subcell_adhesion_factor = my_cell->custom_data[subcell_adhesion_factor_index];
+	
 	static int nRAOC = my_cell->custom_data.find_variable_index( "relative_adhesion_other_cells" ); 
 	static int nRAOCT = my_cell->custom_data.find_variable_index( "relative_adhesion_other_cell_types" ); 
 	
@@ -266,6 +149,7 @@ void add_heterotypic_potentials(Cell* my_cell , Cell* other_agent)
 	// August 2017 - back to the original if both have same coefficient 
 	double effective_repulsion = sqrt( my_cell->phenotype.mechanics.cell_cell_repulsion_strength * other_agent->phenotype.mechanics.cell_cell_repulsion_strength );
 	temp_r *= effective_repulsion; 
+	temp_r *= subcell_repulsion_factor;
 	
 	//////////////////////////////////////////////////////////////////
 	
@@ -293,6 +177,7 @@ void add_heterotypic_potentials(Cell* my_cell , Cell* other_agent)
 		if( my_cell->type != other_agent->type )
 		{ effective_adhesion *= rel_heterotypic_adhesion; }
 		temp_a *= effective_adhesion; 
+		temp_a *= subcell_adhesion_factor;
 		
 		temp_r -= temp_a;
 	}
@@ -361,38 +246,24 @@ void BM_special_mechanics( Cell* pCell, Phenotype& phenotype, double dt )
 
 void custom_cell_update_mechanics( Cell* pCell , Phenotype& phenotype , double dt )
 {
-	static int nRP = 0; // "rest_position"
 	
-	// displacement 
-	std::vector<double> disp = pCell->custom_data.vector_variables[nRP].value - pCell->position; 
-	
-	static int nEConst = pCell->custom_data.find_variable_index( "cell_elasticity" );
-	static int nPConst = pCell->custom_data.find_variable_index( "cell_plasticity" );
-
-	// first, update the agent's velocity based upon the elastic model
-	// axpy( &( pCell->velocity ) , pCell->custom_data[nEConst] , disp );
-
-	// now, plastic mechanical relaxation
-
-	// double plastic_temp_constant = -dt * pCell->custom_data[nPConst];
-	// axpy( &(pCell->custom_data.vector_variables[nRP].value) , plastic_temp_constant , disp );
-
 	static int membrane_repulsion_factor_index = pCell->custom_data.find_variable_index("membrane_repulsion_factor");
 	static int membrane_adhesion_factor_index = pCell->custom_data.find_variable_index("membrane_adhesion_factor");
+	static int relative_maximum_membrane_adhesion_distance_index = pCell->custom_data.find_variable_index("relative_maximum_membrane_adhesion_distance");
 
 	double membrane_repulsion_factor = pCell->custom_data[membrane_repulsion_factor_index];
 	double membrane_adhesion_factor = pCell->custom_data[membrane_adhesion_factor_index];
+	double relative_maximum_membrane_adhesion_distance = pCell->custom_data[relative_maximum_membrane_adhesion_distance_index];
 
     static int attach_lifetime_i = pCell->custom_data.find_variable_index( "attach_lifetime" ); 
     static int attach_time_i = pCell->custom_data.find_variable_index( "attach_time" ); 
     static int attach_to_BM_i = pCell->custom_data.find_variable_index( "attach_to_BM" ); 
 
-    double adhesion_radius = phenotype.geometry.radius * phenotype.mechanics.relative_maximum_adhesion_distance;
-	adhesion_radius =  pCell->phenotype.geometry.radius * 3;
+    double adhesion_radius = phenotype.geometry.radius * relative_maximum_membrane_adhesion_distance;
     int ncells_attached = 0;
 	double temp_r;
 	double temp_a;
-	double R = pCell->phenotype.geometry.radius * 1.5;
+	double R = adhesion_radius / 2;
 
 	int pbmIndex = microenvironment.find_density_index("pbm");
 	int n_x_index = microenvironment.find_density_index("n_x");
@@ -403,16 +274,13 @@ void custom_cell_update_mechanics( Cell* pCell , Phenotype& phenotype , double d
 	std::vector<double> nearest_voxel = microenvironment.nearest_density_vector(pCell->position);
 
 	
-	// double nx = microenvironment.density_vector(nearest_voxel[0], nearest_voxel[1]).at(n_x_index);
 	double nx = microenvironment.density_vector(vi).at(n_x_index);
 	double ny = microenvironment.density_vector(vi).at(n_y_index);
-	// double ny = microenvironment.density_vector(nearest_voxel[0], nearest_voxel[1]).at(n_y_index);
+
 	double signed_dist = microenvironment.density_vector(vi).at(pbmIndex);
 	// double signed_dist = microenvironment.density_vector(nearest_voxel[0], nearest_voxel[1]).at(pbmIndex);
 
-	// double displacement = 0.0 - pCell->position[1];  // displacement: just (negative) y (height) for test case
 	double displacement = signed_dist;
-	// displacement = std::sqrt((pCell->position[0]- nx) * (pCell->position[0]- nx) + (pCell->position[1]- ny) * (pCell->position[1]- ny));
 
 	double dx = nx - pCell->position[0];
 	double dy = ny - pCell->position[1];
@@ -436,7 +304,6 @@ void custom_cell_update_mechanics( Cell* pCell , Phenotype& phenotype , double d
 			temp_a += 1.0; // 1-d/Ra
 			temp_a *= temp_a; // (1-d/Ra)^2 
 			temp_a *= membrane_adhesion_factor;
-			// temp_r *= -1;
 
 			if (displacement > -R ) // repulsion
 			{
@@ -452,7 +319,6 @@ void custom_cell_update_mechanics( Cell* pCell , Phenotype& phenotype , double d
 		else 
 		{
 			// if crosses the barrier, then zoom it back inside
-			// std::cout << "crossed the membrane, pushing back in " << pCell->ID << std::endl; 
 			pCell->custom_data[attach_to_BM_i] = 0.0;
 			pCell->custom_data[attach_time_i] = 0.0;
 			dv *= 1000;
@@ -466,22 +332,17 @@ void custom_cell_update_mechanics( Cell* pCell , Phenotype& phenotype , double d
 	if( pCell->custom_data[attach_to_BM_i] == 0.0 )  // not attached to BM
 	{
 		
-        if (displacement <= 0.0 && displacement > -adhesion_radius )
+        // if (displacement <= 0.0 && displacement > -adhesion_radius )
+		if (displacement > -adhesion_radius )
         {
-            std::cout << "t="<<PhysiCell_globals.current_time << "attaching ID=" << pCell->ID << ": displacement= " << displacement <<", adhesion radius= " << adhesion_radius << std::endl;
-            // double p_BM = pv - d*nv
             pCell->custom_data[attach_to_BM_i] = 1.0;   // attached to BM now
             pCell->custom_data[attach_time_i] = 0.0;   // reset its time of being attached
-			std::cout << "velocity " << pCell->velocity[0] << " " << pCell->velocity[1] <<std::endl;
-
 			temp_r = displacement; // d
 			temp_r /= adhesion_radius; // d/R
 			temp_r += 1.0; // 1-d/R 
 			temp_r *= temp_r; // (1-d/R)^2 
 			temp_r *= membrane_adhesion_factor;
-			// temp_r *= -1;
 			
-
 			axpy(&(pCell->velocity), temp_r , normal);
             
         }
